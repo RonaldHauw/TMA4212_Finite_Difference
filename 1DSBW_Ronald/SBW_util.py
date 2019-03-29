@@ -32,9 +32,29 @@ def specrad(A):
     
 
 def track_specrad(A, tstep, title):
+    dat = specrad(A)
     if tstep==1:
         open("{0}.txt".format(title), 'w').close()
     f = open("{0}.txt".format(title), "a")
-    f.write('\n {0}: {1}'.format(tstep, specrad(A)))
+    f.write('{0}: {1}\n'.format(tstep, dat))
     f.close()
+    return dat
+
+def color_grads(steps):
+    blue = np.array([0.1, 0.1, 0.99])
+    red = np.array([0.99, 0.1, 0.1])
+    green = np.array([0.1, 0.99, 0.1])
+    B = []
+    R = []
+    G = []
+    for n in np.linspace(0.0, 1.0, steps):
+        B += [blue*n]
+        G += [green*n]
+        R += [red*n]
+    
+    return R, G, B
+        
+    
+    
+    
 

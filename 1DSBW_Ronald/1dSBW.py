@@ -8,15 +8,23 @@ import sys
 import SBW_util as util
 from matplotlib.animation import FuncAnimation
 
-## proe FW unstable in boundary condition case
 
-eps_u = 0.01
+# init cond
+# plots 1D 
+# report (todo's, structure, division of work )
+# 2D scheme correspondence
+# stability 
+# convergence plots
+# test case w oxygen 
+
+
+eps_u = 0.001 # 0.01
 eps_v = 0.001 # 0.001
-gamma_u = 0.05
-zeta = 0.5
+gamma_u = 0.0041# 0.05
+zeta = 0.0
 alpha_v = 0.1
 beta_v = 0.1
-eta_w = 10
+eta_w = 10.0
 
 def constr_lineqU(U, W, V, N, M, T):
     '''
@@ -30,7 +38,7 @@ def constr_lineqU(U, W, V, N, M, T):
 
     #k = 1.0/float(M)
     h = 1.0/float(N)
-    k = 0.25*h**2*1.0/eps_v
+    k = 1.0/float(M)
 
     #assert(U.shape == W.shape and W.shape == V.shape, 'Dim error')
     #assert(U.shape[1] ==N and U.shape[0] == M, 'Dim error')
@@ -43,11 +51,11 @@ def constr_lineqU(U, W, V, N, M, T):
     fU = np.zeros((X_length, ))
 
     # BOUNDARY CONDITIONS
-    A2Ut[0,0], A2Ut[0, 1] = -1.0, 1.0 # left boundary
-    A2Ut[-1, -2], A2Ut[-1,-1] = -1.0, 1.0 # right boundary
+    A2Ut[0,0], A2Ut[0, 1] = -1.0/h, 1.0/h # left boundary
+    A2Ut[-1, -2], A2Ut[-1,-1] = -1.0/h, 1.0/h # right boundary
     
-    A1Ut[0,0], A1Ut[0, 1] = -1.0, 1.0 # left boundary
-    A1Ut[-1, -2], A1Ut[-1,-1] = -1.0, 1.0 # right boundary
+    A1Ut[0,0], A1Ut[0, 1] = -1.0/h, 1.0/h # left boundary
+    A1Ut[-1, -2], A1Ut[-1,-1] = -1.0/h, 1.0/h # right boundary
 
     # A1 UM+1 = f - A2 UM
     for i in range(1, X_length-1): # for each x in space do
@@ -154,17 +162,18 @@ def SB_solver_1D(N, M, nb_sec):
     U = np.zeros((M*nb_sec,N))
     W = np.zeros((M*nb_sec,N))
     V = np.zeros((M*nb_sec,N))
+    
+    epsilon = 0.01
 
     # J = 0: SET INITIAL conditions
-    #W[0,:]=0.05
-    #for i in range(0, N, 2):
-    #    W[0, i:i+1] = 0.01
-    #for i in range(0, N):
-    #    W[0,i] = 0.2 + 0.1*np.sin(4*np.pi*i/N)
-    U[0, 0:333]=0.5
-    W[0, 0:333]=0.01
-    W[0, 333:] = 0.1
+    n0 = [np.exp(-((1.0*x)/N)**2/epsilon) for x in range(N)]
+    f0 = [(1.0 - np.exp(-((1.0*x)/N)**2/epsilon))*0.7 for x in range(N)]
+    m0 = [0.5*np.exp(-((1.0*x)/N)**2/epsilon) for x in range(N)]
+    U[0,:] = np.array(n0)
+    #V[0,:] = np.array(m0)
+    W[0,:] = np.array(f0)
     
+    rhoU, rhoV, rhoW = [], [], []
     
     # J = 1..M
     for j in tqdm(range(1, M*nb_sec)): # for each time do
@@ -180,64 +189,93 @@ def SB_solver_1D(N, M, nb_sec):
         AU, fU, BU = constr_lineqU(U, W, V, N, M, j)
         U_solve = la.solve(AU, fU)#, U_guess
         U[j,:] = U_solve
-        
-        #util.track_specrad(-la.inv(AU)@BU, j, '1dSWB_specrad_CU_z{0}'.format(zeta))
-        #util.track_specrad(-la.inv(AV)@BV, j, '1dSWB_specrad_CV_z{0}'.format(zeta))
-        #util.track_specrad(-la.inv(AW)@BW, j, '1dSWB_specrad_CW_z{0}'.format(zeta))
+        if spec_log or rho_plot: 
+            rhoU += [util.track_specrad(-la.inv(AU)@BU, j, '1dSWB_specrad_CU_z{0}'.format(zeta))]
+            rhoV += [util.track_specrad(-la.inv(AV)@BV, j, '1dSWB_specrad_CV_z{0}'.format(zeta))]
+            rhoW += [util.track_specrad(-la.inv(AW)@BW, j, '1dSWB_specrad_CW_z{0}'.format(zeta))]
     
-    return U, V, W, AU, BU, AV, BV
+    return U, V, W, AU, BU, AV, BV, rhoU, rhoV, rhoW
 
 
 
 
 
-N_t = 1000
-M_t = 1000
-nb_sec = 3
+N_t = 100
+M_t = 100
+nb_sec = 20
 
 print('Simulating with N = ', N_t, '  M = ', M_t, ' for ', nb_sec, ' seconds. ')
 print('Zeta = ', zeta)
 sys.stdout.flush()
 
-run = True
-if run:
-    U, V, W, AUx, BUx, AVx, BVx = SB_solver_1D(N_t,M_t, nb_sec)
-    #CUxxx = -la.inv(AU)@BU
-    #RHOCUxx = 1.0/np.max(la.eigvals(AU))*np.max(la.eigvals(BU))
+run = False
+anim_plot = False
+rho_plot = False
+Dthree_plot = False
+spec_log = False
+Dtwo_plot = True
 
+
+if run:
+    U, V, W, AUx, BUx, AVx, BVx, rhoUx, rhoVx, rhoWx = SB_solver_1D(N_t,M_t, nb_sec)
+
+plt.clf()
+plt.cla()
+plt.close()
 
 xx = np.arange(0,N_t)
 yy = np.arange(0,M_t*nb_sec)
 X, Y = np.meshgrid(xx,yy)
 
-# 3D plot
-#fig = plt.figure(1)
-#ax = Axes3D(fig)
-#ax.plot_surface(X,Y,V[0:])
-#ax.plot_surface(X,Y,U)
+if Dthree_plot:
+    fig3 = plt.figure(1)
+    ax = Axes3D(fig3)
+    ax.plot_surface(X,Y,V[0:])
+    ax.plot_surface(X,Y,U)
 
-plt.clf()
-plt.cla()
-plt.close()
-fig, ax = plt.subplots()
-ln, = plt.plot(xx, U[0,:], 'b')
-ln1, = plt.plot(xx, V[0,:], 'r')
-ln2, = plt.plot(xx, W[0,:], 'green')
+if anim_plot:
+    
+    figa = plt.figure(2)
+    figa, ax = plt.subplots()
+    ln, = plt.plot(xx, U[0,:], 'b')
+    ln1, = plt.plot(xx, V[0,:], 'r')
+    ln2, = plt.plot(xx, W[0,:], 'green')
+    
+    def init():
+        ax.set_xlim(0, N_t)
+        ax.set_ylim(0, 1)
+        return ln, ln1, ln2,
+    
+    def update(frame):
+        ln.set_data(xx, U[frame,:])
+        ln1.set_data(xx, V[frame,:])
+        ln2.set_data(xx, W[frame,:])
+    
+        return ln, ln1, ln2,
+    
+    ani = FuncAnimation(figa, update, frames=np.array(range(0, M_t*nb_sec)),
+                        init_func=init, blit=True)
+    plt.show()
 
-def init():
-    ax.set_xlim(0, N_t)
-    ax.set_ylim(0, 1)
-    return ln, ln1, ln2,
+if Dtwo_plot:
+    steps = 10
+    fig = plt.figure(4)
+    R, G, B = util.color_grads(steps)
+    xx = np.array(range(0,N_t))
+    for i in range(0, steps-1):
+        cur_t = int(i*M_t*nb_sec/steps)
+        plt.plot(xx, U[cur_t,:], color=B[i])
+        plt.plot(xx, V[cur_t,:], color=R[i])
+        plt.plot(xx, W[cur_t,:], color=G[i])
+    plt.show()
 
-def update(frame):
-    ln.set_data(xx, U[frame,:])
-    ln1.set_data(xx, V[frame,:])
-    ln2.set_data(xx, W[frame,:])
+    
 
-    return ln, ln1, ln2,
-
-ani = FuncAnimation(fig, update, frames=np.array(range(0, M_t*nb_sec)),
-                    init_func=init, blit=True)
-plt.show()
-
-
+if rho_plot:
+    fig = plt.figure(3)
+    xx = np.array(range(0, M_t*nb_sec-1))
+    l1 = plt.plot(xx, rhoUx, color='blue')
+    l2 = plt.plot(xx, rhoVx, color='red')
+    l3 = plt.plot(xx, rhoWx, color='green')
+    plt.legend(('rho(C_U)', 'rho(C_V)', 'rho(C_W)'))
+    plt.show()
