@@ -83,7 +83,9 @@ A = diags(Adiagonals, Aoffsets)
 B1 = 0.5*diags(B1diagonals, B1offsets)
 BN = 0.5*diags(BNdiagonals, BNoffsets)
 
+#==============================================================================
 # Derivative function
+#==============================================================================
 def F(t, z):
     M = len(z)/3
     n = z[:M]
