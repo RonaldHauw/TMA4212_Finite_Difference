@@ -41,16 +41,19 @@ def track_specrad(A, tstep, title):
     return dat
 
 def color_grads(steps):
-    blue = np.array([0.1, 0.1, 0.99])
-    red = np.array([0.99, 0.1, 0.1])
-    green = np.array([0.1, 0.99, 0.1])
+    blue_max = np.array([0.2, 0.2, 0.99])
+    red_max = np.array([0.99, 0.2, 0.2])
+    green_max = np.array([0.2, 0.99, 0.2])
+    blue_min = np.array([0.09, 0.09, 0.4])
+    red_min = np.array([0.3, 0.09, 0.09])
+    green_min = np.array([0.09, 0.3, 0.09])
     B = []
     R = []
     G = []
     for n in np.linspace(0.0, 1.0, steps):
-        B += [blue*n]
-        G += [green*n]
-        R += [red*n]
+        B += [blue_max*n+(1-n)*blue_min]
+        G += [green_max*n+(1-n)*green_min]
+        R += [red_max*n+(1-n)*red_min]
     
     return R, G, B
         

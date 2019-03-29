@@ -20,7 +20,7 @@ from matplotlib.animation import FuncAnimation
 
 eps_u = 0.001 # 0.01
 eps_v = 0.001 # 0.001
-gamma_u = 0.0041# 0.05
+gamma_u = 0.005# 0.05
 zeta = 0.0
 alpha_v = 0.1
 beta_v = 0.1
@@ -38,7 +38,8 @@ def constr_lineqU(U, W, V, N, M, T):
 
     #k = 1.0/float(M)
     h = 1.0/float(N)
-    k = 1.0/float(M)
+    #k = 1.0/float(M)
+    k = 0.25*h**2 / max(eps_u,eps_v)
 
     #assert(U.shape == W.shape and W.shape == V.shape, 'Dim error')
     #assert(U.shape[1] ==N and U.shape[0] == M, 'Dim error')
@@ -51,11 +52,11 @@ def constr_lineqU(U, W, V, N, M, T):
     fU = np.zeros((X_length, ))
 
     # BOUNDARY CONDITIONS
-    A2Ut[0,0], A2Ut[0, 1] = -1.0/h, 1.0/h # left boundary
-    A2Ut[-1, -2], A2Ut[-1,-1] = -1.0/h, 1.0/h # right boundary
+    A2Ut[0,0], A2Ut[0, 1] = -1, 1 # left boundary
+    A2Ut[-1, -2], A2Ut[-1,-1] = -1, 1 # right boundary
     
-    A1Ut[0,0], A1Ut[0, 1] = -1.0/h, 1.0/h # left boundary
-    A1Ut[-1, -2], A1Ut[-1,-1] = -1.0/h, 1.0/h # right boundary
+    A1Ut[0,0], A1Ut[0, 1] = -1, 1 # left boundary
+    A1Ut[-1, -2], A1Ut[-1,-1] = -1, 1 # right boundary
 
     # A1 UM+1 = f - A2 UM
     for i in range(1, X_length-1): # for each x in space do
@@ -84,6 +85,7 @@ def constr_lineqV(U, W, V, N, M, T):
 
     k = 1.0/float(M)
     h = 1.0/float(N)
+    k = 0.25*h**2 / max(eps_u,eps_v)
     #k = 0.25*h**2*1.0/eps_v
 
     #assert(U.shape == W.shape and W.shape == V.shape, 'Dim error')
@@ -128,8 +130,10 @@ def constr_lineqW(U, W, V, N, M, T):
         M: nb of time steps (int)
     '''
 
-    k = 1.0/float(M)
+    #k = 1.0/float(M)
     h = 1.0/float(N)
+    k = 0.25*h**2 / max(eps_u,eps_v)
+
     #k = 0.25*h**2*1.0/eps_v
 
     #assert(U.shape == W.shape and W.shape == V.shape, 'Dim error')
@@ -156,8 +160,13 @@ def constr_lineqW(U, W, V, N, M, T):
 
 def SB_solver_1D(N, M, nb_sec):
 
-    k = 1.0/float(M)
     h = 1.0/float(N)
+    k = 0.25*h**2 / max(eps_u,eps_v)
+    
+    M_ = M
+    M = int(1.0/k)
+    print('M value became: ', M)
+    sys.stdout.flush()
 
     U = np.zeros((M*nb_sec,N))
     W = np.zeros((M*nb_sec,N))
@@ -166,10 +175,11 @@ def SB_solver_1D(N, M, nb_sec):
     epsilon = 0.01
 
     # J = 0: SET INITIAL conditions
-    n0 = [np.exp(-((1.0*x)/N)**2/epsilon) for x in range(N)]
-    f0 = [(1.0 - np.exp(-((1.0*x)/N)**2/epsilon))*0.7 for x in range(N)]
+    n0 = [np.exp(-((1.0*x)/N)**2/epsilon)*0.5 for x in range(N)]
+    f0 = [(1.0 - np.exp(-((1.0*x)/N)**2/epsilon))*0.5 for x in range(N)]
     m0 = [0.5*np.exp(-((1.0*x)/N)**2/epsilon) for x in range(N)]
     U[0,:] = np.array(n0)
+    U[0,0], U[0,-1] = U[0,1], U[0,-2]
     #V[0,:] = np.array(m0)
     W[0,:] = np.array(f0)
     
@@ -204,16 +214,19 @@ N_t = 100
 M_t = 100
 nb_sec = 20
 
+
+
 print('Simulating with N = ', N_t, '  M = ', M_t, ' for ', nb_sec, ' seconds. ')
-print('Zeta = ', zeta)
+print('Zeta = ', zeta, end=' ')
 sys.stdout.flush()
 
-run = False
+run = True
 anim_plot = False
 rho_plot = False
 Dthree_plot = False
 spec_log = False
 Dtwo_plot = True
+
 
 
 if run:
